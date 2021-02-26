@@ -1,0 +1,188 @@
+\documentclass{scrartcl}
+\usepackage{hyperref}
+\usepackage{float}
+<<setup, include=FALSE>>=
+knitr::opts_chunk$set(echo = TRUE, fig.width=6.0, fig.height=4.5,
+                      fig.align='center', comment='')
+@
+
+<<dataInput, echo=FALSE>>=
+options(scipen=10)
+if(file.exists("UScovid.RData"))load('UScovid.RData') else {
+load(url("https://github.com/jhmaindonald/dataR/raw/main/data/UScovid.RData"))
+save(usPop5s, italyPop5s, germanPop5s, kenyaPop5s,USdeadpop1yr,wkStartEnd, UScausesByCats,
+     cf4countries, file="UScovid.RData")
+}
+@
+
+<<reduceLims, echo=FALSE>>=
+reduceLims <- function(data=germanPop,
+                       lims=c(seq(from=4,to=99, by=5),Inf),
+                       newlims=c(seq(from=4,to=89, by=5),Inf), plot=FALSE){
+  data <- within(data, {cumM <- cumsum(M); cumF <- cumsum(F)})
+  nr <- match(newlims,lims)
+  newDat <- data[nr,c('cumM','cumF')]
+  gp <- paste(c(0, newlims[-length(newlims)]+1), newlims, sep='-')
+  gp[length(gp)] <- paste0(newlims[length(newlims)-1]+1,"+")
+  newDat[['gp']] <- factor(gp, levels=gp)
+  newDat <- within(newDat, {M <- c(cumM[1],diff(cumM)); F <- c(cumF[1],diff(cumF));
+                            pop <- M+F})
+  if(plot){plot(cumpop~lims, data=data)
+    with(newDat, points(lims, cumpop, pch=3))}
+  newDat$relNum <- with(newDat,pop/sum(pop))
+  newDat
+}
+@
+
+\title{Covid-19 Deaths to Date in the USA, Compared with Other Causes}
+\date{2021\\ February}
+\author{John Maindonald}
+
+\begin{document}
+\maketitle
+
+
+<<caps, echo=FALSE>>=
+cap_pyramid <- "Population pyramids, compared between Italy, Germany, and Kenya."
+cap_props <- paste0("United States reported deaths per 100 from Covid-19
+(and, for comparison, deaths per 100), for the time period from ",
+wkStartEnd[1], " to ", wkStartEnd[2], ". For Covid-19 deaths, 2 SE bounds
+are added to the smooth. The total number of Covid-19 deaths reported was ",
+sum(USdeadpop1yr$covdeaths),".")
+fromTo <- format(UScausesByCats[1,2:3],"%b %d %Y")
+causeCap <- paste0("Deaths per thousand, between ", fromTo[1], " and ",
+                   fromTo[2], " from Covid-19, from pneumonia alone, and
+                   from influenza (all)")
+@
+
+<<byFives, echo=FALSE>>=
+pyramids <- list(us=usPop5s, italy=italyPop5s, german=germanPop5s, kenya=kenyaPop5s)
+popInf90 <- lapply(pyramids, function(x)reduceLims(x))
+popInf85 <- lapply(pyramids,
+                   function(x)reduceLims(x,lims=c(seq(from=4,to=99, by=5),Inf),
+                                          newlims=c(seq(from=4,to=85, by=5),Inf)))
+@
+
+Infection rates for Covid-19 and (even more) death rates have been
+enormously greater among those in older age groups than among the young.
+Figure \ref{fig:riskByAge} plots reported deaths per 100 from Covid-19
+(and, for comparison, deaths), over the 13 months prior to
+\Sexpr{wkStartEnd[2]}.
+See \url{https://data.cdc.gov/resource/3apk-4u4f/} for details.
+
+\setcapindent{1em}
+<<riskByAge, out.width='0.7\\textwidth', echo=FALSE, fig.cap=cap_props, fig.pos="H">>=
+suppressPackageStartupMessages(library(mgcv))
+rcd2.gam <- gam(covdeaths~s(age, k=15),offset=log(pop),
+                data=USdeadpop1yr[-86,], family=poisson)
+rd2.gam <- gam(alldeaths~s(age, k=15),offset=log(pop),
+               data=USdeadpop1yr[-86,], family=poisson)
+ylab <- 10^seq(from=-3, to=2, by=1)
+predCwSE <- predict(rcd2.gam, se=TRUE)
+fitC <- predCwSE[['fit']]
+seC <- predCwSE[['se.fit']]
+predC <- log(1000)+c(fitC, NA, rep(log(USdeadpop1yr[86,'relcovdead']),2))
+upr <- predC+2*c(seC, rep(NA,3))
+lwr <- predC-2*c(seC, rep(NA,3))
+pred <- log(1000)+c(predict(rd2.gam), NA, rep(log(USdeadpop1yr[86,'reldead']),2))
+atx <- seq(from=0, to=80, by=10)
+library(lattice)
+cols <- trellis.par.get()[['superpose.symbol']][['col']]
+gph <- xyplot(predC+pred~I(c(0:84,NA,86,91)), type='l',
+               xlab="Age", ylab="Deaths per 1000",
+               par.settings=simpleTheme(lty=c(1,3), lwd=c(2,1.5), col=cols[1:2]),
+       scales=list(y=list(at=log(ylab), labels=paste(ylab)),
+                   x=list(at=c(atx,90), labels=c(paste(atx),"85+"))),
+       auto.key=list(columns=2, lines=TRUE, points=FALSE,
+                     text=c('from Covid-19','All causes')))
+gph+latticeExtra::layer(panel.lines(I(0:84),lwr,lty=2,lwd=1),
+                        panel.lines(I(0:84),upr,lty=2,lwd=1),
+                        panel.grid(h=-1,v=-1))
+@
+
+Among aged 65 or older, deaths associated with Covid-19 accounted for
+\Sexpr{round(100*with(subset(USdeadpop1yr,age>=65), sum(covdeaths)/sum(alldeaths)),1)}\%
+of all deaths.
+\Sexpr{round(100*with(USdeadpop1yr, sum(covdeaths[age>=65])/sum(covdeaths)),1)}\%
+of all deaths from Covid-19. occurred in the 65 or older age group.
+
+<<USdeathsCauses, echo=FALSE, out.width='0.7\\textwidth', fig.cap=causeCap, out.extra='', fig.pos='H'>>=
+cols <- trellis.par.get()$superpose.symbol$col[c(1:2,5)]
+xyplot(covid_19_r+pneumonia_alone_r+influenza_all_r~age_group_new, type=c('p','g'),
+       scales=list(y=list(log=T)), par.settings=simpleTheme(pch=16, col=cols),
+       auto.key=list(columns=3), data=UScausesByCats, xlab="Age group",
+       ylab="Deaths per thousand")
+@
+Figure \ref{fig:USdeathsCauses} compares death rates where Covid-19 was involved
+with those from pneumonia alone, and those where influenza was involved.
+Except for those aged under 15, influenza made only a small contribution
+to total deaths.  For those 83 or older, deaths from influenza were just over
+\Sexpr{round(UScausesByCats[11,16]/UScausesByCats[11,17]*100,1)}\% of those
+from Covid-19.
+
+Observe how the rates shown in Figure \ref{fig:riskByAge} flow through
+when comparisons are attempted between very different age structures.
+Figure \ref{fig:popPyramid} compares the population pyramids:
+<<popPyramid, out.width='0.9\\textwidth', fig.width=8.0, fig.height=3.75, echo=FALSE, fig.cap=cap_pyramid, fig.pos='H'>>=
+dat <- rbind(stack(popInf90[["italy"]], select=c('M','F')),
+                   stack(popInf90[["us"]], select=c('M','F')),
+             stack(popInf90[["kenya"]], select=c('M','F')))
+names(dat)[1:2] <- c('pop','gender')
+countries <- c("Italy","United States","Kenya")
+dat <- within(dat, {pop <- pop/1000000; gp <- rep(popInf90[['us']][['gp']],6);
+                    country <- factor(rep(countries,rep(38,3)), levels=countries);
+                    gender <- factor(dat$gender, levels=c('F','M'))})
+library(ggplot2)
+ggplot(dat, aes(x = gp, fill = gender,
+                y = ifelse(test = gender == "F", yes = pop, no = -pop))) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = abs, n.breaks=7) +
+  labs(x="Age group", y = "Number in age group (millions)") +
+  coord_flip() +
+  facet_wrap(~ country, scales="free_x")
+@
+
+<<USequivDeaths, echo=FALSE>>=
+nr <- match(c(seq(from=4, to=84, by=5),Inf), USdeadpop1yr$age)
+deaths5 <- sapply(USdeadpop1yr[, c('covdeaths', 'alldeaths','pop')],
+                  function(x)diff(c(0,cumsum(x)[nr])))
+@
+
+The following compares deaths per 100,000 between the USA Germany, Italy, and Kenya,
+noting also the numbers that might be expected if the proportions by age that are
+given for the USA were applied in those countries.
+<<elsewhere, echo=FALSE>>=
+## Deaths by age in years are
+## Scale relative numbers of deaths up to account for missing deaths
+## in deaths by age in years table
+perLakh <- setNames(cf4countries[,3]/cf4countries[,2]*100000,c("Italy","USA","Kenya"))
+USrelcovid <- deaths5[,"covdeaths"]/deaths5[,"pop"]
+equivDeaths <- sapply(popInf85[c("italy","us","kenya")],
+                      function(x)sum(USrelcovid*x$pop)/sum(x$pop))*100000
+equivDeaths <- setNames(round(equivDeaths,1),c("Italy","USA","Kenya"))
+equivDeaths <- equivDeaths*perLakh['USA']/equivDeaths['USA']
+round(rbind("Reported deaths per 100000"=perLakh[c("Italy","USA","Kenya")],
+      'Expected, at US rates by age'=equivDeaths[c("Italy","USA","Kenya")]), 1)
+@
+
+The point is to emphasize the difference that differences in population
+structure can make.  Those differences will feed through in different
+ways to the calculation of different summary measure that may be of
+interest --- e.g., infection rates or hospital admissions.  In all cases,
+numbers from different countries may not, because of differences in the
+completeness of the data and in recording protocols, be strictly
+comparable.  Case numbers, because of the extent to which they can
+be influenced by testing rates, are likely to be substantial undercounts,
+to an extent that varies from country to country.
+
+Search for "COVID-19 Hospitalization and Death by Age | CDC" to see
+a table that shows how, in the US, hospitalization and death varied with
+age.  Whereas death rates for those 85 years of age or older have been
+810 times those of 5-17 year olds, for hospitalization the multiplier
+has been 52. The rates for 0-4 year olds were around twice those for
+5-17 year olds.
+Overall rates varied, in both cases, with race and
+ethnicity.  Compared to white non-hispanics, the hospitalization rate
+was 4.1 times greater for hispanics or Latinos, while the death rate
+was 2.8 times greater.
+\end{document}
