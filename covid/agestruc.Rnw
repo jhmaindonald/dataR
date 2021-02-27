@@ -2,7 +2,7 @@
 \usepackage{hyperref}
 \usepackage{float}
 <<setup, include=FALSE>>=
-knitr::opts_chunk$set(echo = TRUE, fig.width=6.0, fig.height=4.5,
+knitr::opts_chunk$set(echo = TRUE, fig.width=6.0, fig.height=4.25,
                       fig.align='center', comment='')
 @
 
@@ -34,13 +34,13 @@ reduceLims <- function(data=germanPop,
 }
 @
 
-\title{Covid-19 Deaths to Date in the USA, Compared with Other Causes}
-\date{2021\\ February}
+\title{United States Covid-19 Death Statistics, to \Sexpr{wkStartEnd[2]}}
+\date{February 2021}
 \author{John Maindonald}
 
 \begin{document}
 \maketitle
-
+\subsection*{Covid-19 death rates by year of age}
 
 <<caps, echo=FALSE>>=
 cap_pyramid <- "Population pyramids, compared between Italy, Germany, and Kenya."
@@ -106,6 +106,8 @@ of all deaths.
 \Sexpr{round(100*with(USdeadpop1yr, sum(covdeaths[age>=65])/sum(covdeaths)),1)}\%
 of all deaths from Covid-19. occurred in the 65 or older age group.
 
+\subsection*{Deaths from Covid-19, pneumonia alone, \& influenza (all), by age category}
+
 <<USdeathsCauses, echo=FALSE, out.width='0.7\\textwidth', fig.cap=causeCap, out.extra='', fig.pos='H'>>=
 cols <- trellis.par.get()$superpose.symbol$col[c(1:2,5)]
 xyplot(covid_19_r+pneumonia_alone_r+influenza_all_r~age_group_new, type=c('p','g'),
@@ -120,10 +122,9 @@ to total deaths.  For those 83 or older, deaths from influenza were just over
 \Sexpr{round(UScausesByCats[11,16]/UScausesByCats[11,17]*100,1)}\% of those
 from Covid-19.
 
-Observe how the rates shown in Figure \ref{fig:riskByAge} flow through
-when comparisons are attempted between very different age structures.
-Figure \ref{fig:popPyramid} compares the population pyramids:
-<<popPyramid, out.width='0.9\\textwidth', fig.width=8.0, fig.height=3.75, echo=FALSE, fig.cap=cap_pyramid, fig.pos='H'>>=
+\subsection*{How might US age-specific death rates translate to other countries?}
+
+<<popPyramid, out.width='0.8\\textwidth', fig.width=8.0, fig.height=3.75, echo=FALSE, fig.cap=cap_pyramid, fig.pos='H'>>=
 dat <- rbind(stack(popInf90[["italy"]], select=c('M','F')),
                    stack(popInf90[["us"]], select=c('M','F')),
              stack(popInf90[["kenya"]], select=c('M','F')))
@@ -141,6 +142,11 @@ ggplot(dat, aes(x = gp, fill = gender,
   coord_flip() +
   facet_wrap(~ country, scales="free_x")
 @
+
+Observe how the rates shown in Figure \ref{fig:riskByAge} flow through
+when comparisons are attempted between countries with very different age
+structures.  Figure \ref{fig:popPyramid} compares the population pyramids
+between Italy, the United States, and Kenya.
 
 <<USequivDeaths, echo=FALSE>>=
 nr <- match(c(seq(from=4, to=84, by=5),Inf), USdeadpop1yr$age)
@@ -175,14 +181,32 @@ comparable.  Case numbers, because of the extent to which they can
 be influenced by testing rates, are likely to be substantial undercounts,
 to an extent that varies from country to country.
 
-Search for "COVID-19 Hospitalization and Death by Age | CDC" to see
-a table that shows how, in the US, hospitalization and death varied with
+A table on the web page \href{https://www.cdc.gov/coronavirus/2019-ncov/covid-data/investigations-discovery/hospitalization-death-by-age.html}{Hospitalization and Death by Age}
+shows how, in the US, hospitalization and death varied with
 age.  Whereas death rates for those 85 years of age or older have been
 810 times those of 5-17 year olds, for hospitalization the multiplier
 has been 52. The rates for 0-4 year olds were around twice those for
-5-17 year olds.
-Overall rates varied, in both cases, with race and
+5-17 year olds. Overall rates varied, in both cases, with
 ethnicity.  Compared to white non-hispanics, the hospitalization rate
 was 4.1 times greater for hispanics or Latinos, while the death rate
 was 2.8 times greater.
+
+\subsection*{Source Sweave \& data files, and code used to download data}
+
+The Sweave source file can be downloaded thus:\\
+<<weaveSource, eval=FALSE, echo=TRUE>>=
+url <- "https://github.com/jhmaindonald/dataR/raw/main/covid/agestruc.Rnw"
+download.file(url, 'agestruc.Rnw')
+@
+
+Required packages are \texttt{lattice}, \texttt{ggplot2}, and \texttt{mgcv}.
+To create this pdf, load this file into RStudio, and click {\em Compile PDF}.
+
+The Rcode used to download the data can be downloaded thus:
+<<data-Rcode, eval=FALSE, echo=TRUE>>=
+url <- "https://github.com/jhmaindonald/dataR/raw/main/covid/UScovid.R"
+download.file(url, 'UScovid.R')
+@
+This will download more recent versions of the CDC datasets.
+
 \end{document}
