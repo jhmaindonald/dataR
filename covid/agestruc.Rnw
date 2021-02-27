@@ -44,8 +44,8 @@ reduceLims <- function(data=germanPop,
 
 <<caps, echo=FALSE>>=
 cap_pyramid <- "Population pyramids, compared between Italy, Germany, and Kenya."
-cap_props <- paste0("United States reported deaths per 100 from Covid-19
-(and, for comparison, deaths per 100), for the time period from ",
+cap_props <- paste0("United States reported deaths per 1000 from Covid-19
+(and, for comparison, deaths per 1000), for the time period from ",
 wkStartEnd[1], " to ", wkStartEnd[2], ". For Covid-19 deaths, 2 SE bounds
 are added to the smooth. The total number of Covid-19 deaths reported was ",
 sum(USdeadpop1yr$covdeaths),".")
@@ -65,7 +65,7 @@ popInf85 <- lapply(pyramids,
 
 Infection rates for Covid-19 and (even more) death rates have been
 enormously greater among those in older age groups than among the young.
-Figure \ref{fig:riskByAge} plots reported deaths per 100 from Covid-19
+Figure \ref{fig:riskByAge} plots reported deaths per 1000 from Covid-19
 (and, for comparison, deaths), over the 13 months prior to
 \Sexpr{wkStartEnd[2]}.
 See \url{https://data.cdc.gov/resource/3apk-4u4f/} for details.
